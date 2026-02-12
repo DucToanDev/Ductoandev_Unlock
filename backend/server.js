@@ -117,6 +117,210 @@ app.get('/', (req, res) => {
   });
 });
 
+// ═══════════════════════════════════════════════════════════════
+// 🔐 LOCKET LOGIN TOOL - Đăng nhập bằng Authorization token
+// ═══════════════════════════════════════════════════════════════
+
+// Lấy thông tin user từ Locket
+app.post('/locket/login', async (req, res) => {
+  try {
+    const { authorization } = req.body;
+    
+    if (!authorization) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing authorization token'
+      });
+    }
+
+    // Gọi Locket API để lấy thông tin user
+    const response = await fetch('https://api.locketcamera.com/getUser', {
+      method: 'POST',
+      headers: {
+        'Authorization': authorization,
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.locket.Locket/2.32.1 iPhone/26.0 hw/iPhone12_1'
+      },
+      body: JSON.stringify({})
+    });
+
+    const data = await response.json();
+    
+    if (response.ok) {
+      res.json({
+        success: true,
+        message: 'Login successful',
+        user: data
+      });
+    } else {
+      res.status(response.status).json({
+        success: false,
+        message: 'Login failed',
+        error: data
+      });
+    }
+
+  } catch (error) {
+    console.error('[LOCKET LOGIN ERROR]', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Login failed',
+      error: error.message
+    });
+  }
+});
+
+// Gửi ảnh lên Locket
+app.post('/locket/send', async (req, res) => {
+  try {
+    const { authorization, imageUrl, caption, friends } = req.body;
+    
+    if (!authorization || !imageUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing authorization or imageUrl'
+      });
+    }
+
+    // Gọi Locket API để gửi ảnh
+    const response = await fetch('https://api.locketcamera.com/postMomentV2', {
+      method: 'POST',
+      headers: {
+        'Authorization': authorization,
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.locket.Locket/2.32.1 iPhone/26.0 hw/iPhone12_1'
+      },
+      body: JSON.stringify({
+        data: {
+          thumbnail_url: imageUrl,
+          media_url: imageUrl,
+          caption: caption || '',
+          sent_to_all: friends ? false : true,
+          recipients: friends || []
+        }
+      })
+    });
+
+    const data = await response.json();
+    
+    if (response.ok) {
+      res.json({
+        success: true,
+        message: 'Photo sent successfully',
+        result: data
+      });
+    } else {
+      res.status(response.status).json({
+        success: false,
+        message: 'Failed to send photo',
+        error: data
+      });
+    }
+
+  } catch (error) {
+    console.error('[LOCKET SEND ERROR]', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send photo',
+      error: error.message
+    });
+  }
+});
+
+// Lấy danh sách bạn bè
+app.post('/locket/friends', async (req, res) => {
+  try {
+    const { authorization } = req.body;
+    
+    if (!authorization) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing authorization token'
+      });
+    }
+
+    const response = await fetch('https://api.locketcamera.com/getFriendsV2', {
+      method: 'POST',
+      headers: {
+        'Authorization': authorization,
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.locket.Locket/2.32.1 iPhone/26.0 hw/iPhone12_1'
+      },
+      body: JSON.stringify({})
+    });
+
+    const data = await response.json();
+    
+    if (response.ok) {
+      res.json({
+        success: true,
+        friends: data
+      });
+    } else {
+      res.status(response.status).json({
+        success: false,
+        message: 'Failed to get friends',
+        error: data
+      });
+    }
+
+  } catch (error) {
+    console.error('[LOCKET FRIENDS ERROR]', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get friends',
+      error: error.message
+    });
+  }
+});
+
+// Lấy feed (ảnh từ bạn bè)
+app.post('/locket/feed', async (req, res) => {
+  try {
+    const { authorization } = req.body;
+    
+    if (!authorization) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing authorization token'
+      });
+    }
+
+    const response = await fetch('https://api.locketcamera.com/getLatestMomentsV2', {
+      method: 'POST',
+      headers: {
+        'Authorization': authorization,
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.locket.Locket/2.32.1 iPhone/26.0 hw/iPhone12_1'
+      },
+      body: JSON.stringify({})
+    });
+
+    const data = await response.json();
+    
+    if (response.ok) {
+      res.json({
+        success: true,
+        feed: data
+      });
+    } else {
+      res.status(response.status).json({
+        success: false,
+        message: 'Failed to get feed',
+        error: data
+      });
+    }
+
+  } catch (error) {
+    console.error('[LOCKET FEED ERROR]', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get feed',
+      error: error.message
+    });
+  }
+});
+
 // Start server
 const HOST = '0.0.0.0';
 app.listen(PORT, HOST, () => {
