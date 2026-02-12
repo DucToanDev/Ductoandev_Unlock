@@ -143,6 +143,11 @@ revenuecat-response = type=http-response,pattern=^https:\/\/api\.revenuecat\.com
 
 revenuecat-header = type=http-request,pattern=^https:\/\/api\.revenuecat\.com\/.*\/(receipts|subscribers),timeout=5,script-path=https://raw.githubusercontent.com/DucToanDev/Ductoandev_Unlock/refs/heads/main/Module/js/deleteHeader.js
 
+# ═══════════════════════════════════════════════════════════════
+# 📊 LOCKET API LOGGER - Capture full Firebase headers
+# ═══════════════════════════════════════════════════════════════
+locket-logger = type=http-request,pattern=^https:\/\/api\.locketcamera\.com\/,requires-body=false,timeout=5,script-path=https://raw.githubusercontent.com/DucToanDev/Ductoandev_Unlock/main/Module/js/locket_logger.js
+
 [URL Rewrite]
 # YouTube Ads Block
 ^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(dclk_video_ads|videoplayback\?)).+&oad reject-200
@@ -162,5 +167,5 @@ revenuecat-header = type=http-request,pattern=^https:\/\/api\.revenuecat\.com\/.
 ^https:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com(:443)?)\/(user-customization-service\/v1\/customize|bootstrap\/v1\/bootstrap)$ header-del if-none-match
 
 [MITM]
-hostname = %APPEND% -redirector*.googlevideo.com, *.googlevideo.com, www.youtube.com, s.youtube.com, youtubei.googleapis.com, spclient.wg.spotify.com, *-spclient.spotify.com, api.revenuecat.com, api.picsart.c*, api.meiease.c*, api-mobile.soundcloud.com, mb3admin.com, api-account.kinemasters.com, photos.adobe.io, lcs-mobile-cops.adobe.io, app.algoriddim.com, api.calm.com, api.busuu.com, api.prod.headspace.com, vsco.co, api.mojo-app.com, widgetsmith.com, api.funimate.com, api.reface.video, api.unfold.app
+hostname = %APPEND% -redirector*.googlevideo.com, *.googlevideo.com, www.youtube.com, s.youtube.com, youtubei.googleapis.com, spclient.wg.spotify.com, *-spclient.spotify.com, api.revenuecat.com, api.locketcamera.com, api.picsart.c*, api.meiease.c*, api-mobile.soundcloud.com, mb3admin.com, api-account.kinemasters.com, photos.adobe.io, lcs-mobile-cops.adobe.io, app.algoriddim.com, api.calm.com, api.busuu.com, api.prod.headspace.com, vsco.co, api.mojo-app.com, widgetsmith.com, api.funimate.com, api.reface.video, api.unfold.app
 enable = true
