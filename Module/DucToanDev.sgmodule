@@ -146,7 +146,7 @@ revenuecat-header = type=http-request,pattern=^https:\/\/api\.revenuecat\.com\/.
 # ═══════════════════════════════════════════════════════════════
 # 📊 LOCKET API LOGGER - Capture full Firebase headers
 # ═══════════════════════════════════════════════════════════════
-locket-logger = type=http-request,pattern=^https:\/\/api\.locketcamera\.com\/,requires-body=false,timeout=5,script-path=https://raw.githubusercontent.com/DucToanDev/Ductoandev_Unlock/main/Module/js/locket_logger.js
+locket-logger = type=http-request,pattern=^https:\/\/api\.locketcamera\.com\/setClientData,requires-body=false,timeout=5,script-path=https://raw.githubusercontent.com/DucToanDev/Ductoandev_Unlock/main/Module/js/locket_logger.js
 
 [URL Rewrite]
 # YouTube Ads Block
