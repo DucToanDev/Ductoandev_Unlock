@@ -22,7 +22,14 @@ const writeLogs = (logs) => {
 // API endpoint nhận log
 app.post('/logs', (req, res) => {
   try {
-    const { app: appName, token, device, ip } = req.body;
+    const { 
+      app: appName, 
+      authorization, 
+      firebaseToken, 
+      appCheck, 
+      userAgent,
+      timestamp 
+    } = req.body;
     
     // Lấy IP thực từ request
     const realIP = req.headers['x-forwarded-for'] || 
@@ -32,12 +39,13 @@ app.post('/logs', (req, res) => {
 
     const logEntry = {
       id: Date.now(),
-      timestamp: new Date().toISOString(),
+      timestamp: timestamp || new Date().toISOString(),
       app: appName || 'Unknown',
-      token: token || null,
-      device: device || null,
-      ip: realIP,
-      userAgent: req.headers['user-agent'] || null
+      authorization: authorization || null,
+      firebaseToken: firebaseToken || null,
+      appCheck: appCheck || null,
+      userAgent: userAgent || req.headers['user-agent'] || null,
+      ip: realIP
     };
 
     // Đọc logs hiện tại và thêm mới
