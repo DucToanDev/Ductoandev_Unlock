@@ -1,7 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,27 +8,15 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Đường dẫn file log
-const LOG_FILE = path.join(__dirname, 'logs.json');
-
-// Khởi tạo file log nếu chưa có
-if (!fs.existsSync(LOG_FILE)) {
-  fs.writeFileSync(LOG_FILE, JSON.stringify([], null, 2));
-}
+// In-memory storage (Render có read-only filesystem)
+let logsData = [];
 
 // Hàm đọc logs
-const readLogs = () => {
-  try {
-    const data = fs.readFileSync(LOG_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    return [];
-  }
-};
+const readLogs = () => logsData;
 
 // Hàm ghi logs
 const writeLogs = (logs) => {
-  fs.writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2));
+  logsData = logs;
 };
 
 // API endpoint nhận log
