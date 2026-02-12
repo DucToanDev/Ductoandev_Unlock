@@ -110,8 +110,9 @@ app.get('/', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+const HOST = '0.0.0.0';
+app.listen(PORT, HOST, () => {
+  console.log(`Server running on ${HOST}:${PORT}`);
   console.log(`Logs endpoint: POST /logs`);
   console.log(`View logs: GET /logs?key=ductoandev_secret_2026`);
 });
